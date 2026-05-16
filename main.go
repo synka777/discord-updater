@@ -3,9 +3,24 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 const discordURL = "https://discord.com/api/download/stable?platform=linux&format=deb"
+
+func extractVersion(url string) (string, error) {
+	// Split "https://dl.discordapp.net/apps/linux/0.0.77/discord-0.0.77.deb"
+	// into ["https:", "", "dl.discordapp.net", "apps", "linux", "0.0.77", "discord-0.0.77.deb"]
+	parts := strings.Split(url, "/") // Returns a slice of strings ([]string)
+
+	for _, part := range parts {
+		// The version segment looks like "O.O.77" - three numbers separated by dots
+		if strings.Count(part, ".") == 2 {
+			return part, nil
+		}
+	}
+	return "", fmt.Errorf("could not extract version from URL: %s", url)
+}
 
 func getLatestURL() (string, error) {
 	// Create an HTTP client that does NOT follow redirects
@@ -43,4 +58,12 @@ func main() {
 	}
 
 	fmt.Println("Latest Discord URL:", url)
+
+	version, err := extractVersion(url)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	fmt.Println("Latest version:", version)
+
 }
