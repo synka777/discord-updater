@@ -11,6 +11,17 @@ import (
 
 const discordURL = "https://discord.com/api/download/stable?platform=linux&format=deb"
 
+func installPackage(debPath string) error {
+	cmd := exec.Command("sudo", "dpkg", "-i", debPath)
+
+	// Instead of capturing output like we did with .Output() before, we're wiring the command's
+	// output stream directly to the terminal's output stream.
+	// Whatever dpkg prints, the user sees it in real time.
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run() // Runs the command and waits for it to finish
+}
+
 func downloadFile(url string, version string) (string, error) {
 	// fmt.Printf() returns a string instead of printing it.
 	// Great for building strings with variables, like our file path.
@@ -169,4 +180,16 @@ func main() {
 		return
 	}
 	fmt.Println("Downloaded to:", debPath)
+
+	fmt.Println("Installing update...")
+	// We're using = instead of := here.
+	// That's because err is already declared from a previous line
+	err = installPackage(debPath)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	fmt.Println("Installed successfully!")
+	os.Remove(debPath)
+	fmt.Println("Cleaned up", debPath)
 }
