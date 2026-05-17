@@ -11,6 +11,16 @@ import (
 
 const discordURL = "https://discord.com/api/download/stable?platform=linux&format=deb"
 
+func launchDiscord() error {
+	cmd := exec.Command("discord")
+	err := cmd.Start() // Start() launches and returns immediately, Run() would wait
+	if err != nil {
+		return err
+	}
+	fmt.Println("Discord launched!")
+	return nil
+}
+
 func installPackage(debPath string) error {
 	cmd := exec.Command("sudo", "dpkg", "-i", debPath)
 
@@ -168,7 +178,7 @@ func main() {
 
 	if installedVersion == latestVersion {
 		fmt.Println("Already up to date! Launching Discord...")
-		// Launch Discord here
+		launchDiscord()
 		return
 	}
 
@@ -190,6 +200,14 @@ func main() {
 		return
 	}
 	fmt.Println("Installed successfully!")
+
 	os.Remove(debPath)
 	fmt.Println("Cleaned up", debPath)
+
+	print("Launching Discord...")
+	err = launchDiscord()
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
 }
