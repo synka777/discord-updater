@@ -2,12 +2,70 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 )
 
 const discordURL = "https://discord.com/api/download/stable?platform=linux&format=deb"
+
+func downloadFile(url string, version string) (string, error) {
+	// fmt.Printf() returns a string instead of printing it.
+	// Great for building strings with variables, like our file path.
+	destPath := fmt.Sprintf("/tmp/discord-%s.deb", version)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	//  Creates (or truncates) a file on disk and returns a handle to write into it.
+	file, err := os.Create(destPath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	// resp.Contentlength is the size of the download in bytes
+	// taken from the HTTP Content-Length header.
+	totalBytes := resp.ContentLength // total size in bytes, -1 if unknown
+	downloaded := int64(0)
+
+	// Here make() allocates a 32KB byte slice to use as a read buffer.
+	// make() is how you allocate slices and maps in Go.
+	buf := make([]byte, 32*1024)
+	for { // infinite loop, break when EOF is reached
+		n, err := resp.Body.Read(buf)
+		if n > 0 {
+			// writes only the n bytes that were actually read - no junk data created
+			_, writeErr := file.Write(buf[:n])
+			if writeErr != nil {
+				return "", writeErr
+			}
+			downloaded += int64(n)
+			if totalBytes > 0 {
+				// \r moves the cursor back to the start of the line
+				//
+				percent := float64(downloaded) / float64(totalBytes) * 100
+				// %f => float; .1 => one decimal, to place IN %f; % => escape the next character
+				fmt.Printf("\rDownloading... %.1f%%", percent)
+			} else {
+				fmt.Printf("\rDownloaded %d bytes", downloaded)
+			}
+		}
+		if err == io.EOF {
+			break // Download complete
+		}
+		if err != nil {
+			return "", err
+		}
+	}
+	fmt.Println() // newline after progress line
+	return destPath, nil
+}
 
 func getInstalledVersion() (string, error) {
 	// Runs a shell command and captures its stdout as a []byte
@@ -103,5 +161,12 @@ func main() {
 		return
 	}
 
-	fmt.Println("Update available! Will now download and install", latestVersion)
+	fmt.Println("Update available! Download version", latestVersion)
+
+	debPath, err := downloadFile(url, latestVersion)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	fmt.Println("Downloaded to:", debPath)
 }
